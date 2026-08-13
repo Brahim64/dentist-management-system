@@ -1,5 +1,5 @@
 use crate::errors::{AppError, AppResult};
-use crate::models::Patient::{CreatePatientInput, Patient, PatientSummary, UpdatePatientInput};
+use crate::models::patient::{CreatePatientInput, Patient, PatientSummary, UpdatePatientInput};
 use sqlx::PgPool;
 use uuid::Uuid;
 

@@ -9,9 +9,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { Button } from "../ui/button";
+import { MoreHorizontalIcon } from "lucide-react";
+import { patientApi } from "@/api/patient-api";
+import { toast } from "../ui/toast";
+import { AddAppointment } from "../appointment-components/add-appointment";
+import { useState } from "react";
 
 interface PatientTableProps {
   patients: PatientSummary[];
+  onPatientDeleted: (id: string) => void;
 }
 
 function calculateAge(dateOfBirth: string): number {
@@ -38,7 +52,10 @@ function getInitials(firstName: string, lastName: string): string {
   return `${firstName[0]}${lastName[0]}`.toUpperCase();
 }
 
-export function PatientTable({ patients }: PatientTableProps) {
+export function PatientTable({
+  patients,
+  onPatientDeleted,
+}: PatientTableProps) {
   const navigate = useNavigate();
 
   if (patients.length === 0) {
@@ -49,6 +66,22 @@ export function PatientTable({ patients }: PatientTableProps) {
     );
   }
 
+  const delete_patient = async (id: string) => {
+    try {
+      await patientApi.delete(id).then(() => {
+        onPatientDeleted(id);
+        toast.add({
+          title: "Patient is deleted",
+          type: "success",
+          description: "Patient has been deleted from the database.",
+        });
+      });
+    } catch (error) {
+      console.error("Failed to refresh patients:", error);
+    } finally {
+    }
+  };
+
   return (
     <Table className="w-[80%]">
       <TableHeader>
@@ -57,6 +90,7 @@ export function PatientTable({ patients }: PatientTableProps) {
           <TableHead>Age</TableHead>
           <TableHead>Phone</TableHead>
           <TableHead>Last visit</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -79,6 +113,33 @@ export function PatientTable({ patients }: PatientTableProps) {
             <TableCell>{calculateAge(patient.dateOfBirth)}</TableCell>
             <TableCell>{patient.phone}</TableCell>
             <TableCell>{formatDate(patient.lastVisit)}</TableCell>
+            <TableCell
+              className="text-right"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="ghost" size="icon" className="size-8">
+                      <MoreHorizontalIcon />
+                      <span className="sr-only">Open menu</span>
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem>Edit</DropdownMenuItem>
+                  <DropdownMenuItem>Add appointment</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => delete_patient(patient?.id)}
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

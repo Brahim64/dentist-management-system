@@ -1,1 +1,2 @@
-pub mod Patient;
+pub mod patient;
+pub mod appointment;

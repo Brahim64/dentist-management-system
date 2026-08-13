@@ -2,7 +2,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{
-    errors::{ AppResult}, models::Patient::{CreatePatientInput, Patient, PatientSummary, UpdatePatientInput}, repositories::patient::PatientRepository,
+    errors::{ AppResult}, models::patient::{CreatePatientInput, Patient, PatientSummary, UpdatePatientInput}, repositories::patient::PatientRepository,
 };
 
 pub struct PatientService;

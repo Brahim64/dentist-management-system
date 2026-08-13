@@ -73,7 +73,14 @@ export default function PatientList() {
       {loading ? (
         <p>Loading patients...</p>
       ) : (
-        <PatientTable patients={filteredPatients} />
+        <PatientTable
+          patients={filteredPatients}
+          onPatientDeleted={(id) => {
+            setPatients((currentPatients) =>
+              currentPatients.filter((patient) => patient.id !== id),
+            );
+          }}
+        />
       )}
       <AddPatient />
     </div>

@@ -1,14 +1,12 @@
-
-
 use tauri::State;
 use uuid::Uuid;
 
-use crate::{errors::AppResult, models::Patient::{CreatePatientInput, Patient, PatientSummary, UpdatePatientInput}, services::patient_service::PatientService, state::AppState};
-
-
-
-
-
+use crate::{
+    errors::AppResult,
+    models::patient::{CreatePatientInput, Patient, PatientSummary, UpdatePatientInput},
+    services::patient_service::PatientService,
+    state::AppState,
+};
 
 #[tauri::command]
 pub async fn create_patient(
@@ -16,6 +14,11 @@ pub async fn create_patient(
     input: CreatePatientInput,
 ) -> AppResult<Patient> {
     PatientService::create(&state.db, input).await
+}
+
+#[tauri::command]
+pub async fn get_patient_by_id(state: State<'_, AppState>, id: Uuid) -> AppResult<Patient> {
+    PatientService::get_by_id(&state.db, id).await
 }
 
 #[tauri::command]

@@ -10,7 +10,8 @@ mod errors;
 mod models;
 mod repositories;
 mod services;
-use crate::commands::patient_commands::{create_patient,update_patient,delete_patient,get_patient_by_phone,get_patients};
+use crate::commands::patient_commands::{create_patient,update_patient,delete_patient,get_patient_by_phone,get_patients,get_patient_by_id};
+use crate::commands::appointment_commands::{create_appointment,delete_appointment,update_appointment,get_appointments,get_appointments_by_patient};
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -34,7 +35,8 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![create_patient,update_patient,delete_patient,get_patient_by_phone,get_patients])
+        .invoke_handler(tauri::generate_handler![create_patient,update_patient,delete_patient,get_patient_by_phone,get_patients,
+            get_patient_by_id,create_appointment,delete_appointment,update_appointment,get_appointments,get_appointments_by_patient])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
