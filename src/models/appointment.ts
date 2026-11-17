@@ -1,6 +1,7 @@
 export interface Appointment {
   id: string;
   patientId: string;
+  treatmentPlanId: string | null;
 
   date: string;
   acte: string;
@@ -18,6 +19,7 @@ export interface Appointment {
 
 export interface CreateAppointmentInput {
   patientId: string;
+  treatmentPlanId?: string | null;
 
   date: string;
   acte: string;
@@ -32,6 +34,7 @@ export interface CreateAppointmentInput {
 
 export interface UpdateAppointmentInput {
   patientId: string;
+  treatmentPlanId?: string | null;
 
   date: string;
   acte: string;

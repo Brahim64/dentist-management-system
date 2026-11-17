@@ -2,8 +2,12 @@ import { appointmentApi } from "@/api/appointment-api";
 import { patientApi } from "@/api/patient-api";
 import { AddAppointment } from "@/components/appointment-components/add-appointment";
 import { AppointmentTable } from "@/components/appointment-components/appointment-table";
+import { AddTreatmentPlan } from "@/components/treatment-plan-components/add-treatment-plan";
+import { TreatmentPlanList } from "@/components/treatment-plan-components/treatment-plan-list";
 import { Appointment } from "@/models/appointment";
 import { Patient } from "@/models/patient";
+import { TreatmentPlan, TreatmentPlanItem } from "@/models/treatment-plan";
+import { treatmentPlanApi } from "@/api/treatment-plan-api";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
@@ -14,6 +18,9 @@ export default function PatientProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [treatmentPlans, setTreatmentPlans] = useState<TreatmentPlan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [plansError, setPlansError] = useState<string | null>(null);
   const loadPatient = async () => {
     try {
       setLoading(true);
@@ -55,15 +62,31 @@ export default function PatientProfile() {
   }, [id]);
   const loadAppointments = async () => {
     if (patient) {
-      await appointmentApi.getByPatientId(patient!.id).then((data) => {
+      await appointmentApi.getByPatientId(patient.id).then((data) => {
         setAppointments(data);
       });
+    }
+  };
+  const loadTreatmentPlans = async () => {
+    if (!patient) return;
+
+    try {
+      setPlansLoading(true);
+      setPlansError(null);
+      const data = await treatmentPlanApi.getByPatientId(patient.id);
+      setTreatmentPlans(data);
+    } catch (loadError) {
+      console.error("Failed to load treatment plans:", loadError);
+      setPlansError("Could not load treatment plans.");
+    } finally {
+      setPlansLoading(false);
     }
   };
   useEffect(() => {
     if (!patient?.id) return;
 
-    loadAppointments();
+    void loadAppointments();
+    void loadTreatmentPlans();
   }, [patient?.id]);
   if (loading) {
     return <div>Loading patient...</div>;
@@ -114,6 +137,53 @@ export default function PatientProfile() {
           </div>
         </div>
       </div>
+      <section className="my-10 space-y-4 px-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold">Treatment plans</h2>
+            <p className="text-sm text-muted-foreground">
+              Procedures, prices, and progress for this patient.
+            </p>
+          </div>
+          <AddTreatmentPlan
+            patientId={patient.id}
+            patientName={`${patient.firstName} ${patient.lastName}`}
+            disabled={plansLoading}
+            onPlanCreated={(plan) =>
+              setTreatmentPlans((current) => [plan, ...current])
+            }
+          />
+        </div>
+        {plansLoading ? (
+          <p className="py-6 text-sm text-muted-foreground">
+            Loading treatment plans...
+          </p>
+        ) : plansError ? (
+          <p className="py-6 text-sm text-destructive">{plansError}</p>
+        ) : (
+          <TreatmentPlanList
+            plans={treatmentPlans}
+            appointments={appointments}
+            onItemUpdated={(updatedItem: TreatmentPlanItem) =>
+              setTreatmentPlans((current) =>
+                current.map((plan) =>
+                  plan.id === updatedItem.treatmentPlanId
+                    ? {
+                        ...plan,
+                        items: plan.items.map((item) =>
+                          item.id === updatedItem.id ? updatedItem : item,
+                        ),
+                      }
+                    : plan,
+                ),
+              )
+            }
+            onAppointmentAdded={(appointment) =>
+              setAppointments((current) => [appointment, ...current])
+            }
+          />
+        )}
+      </section>
       <div className="my-6 px-12 w-full flex justify-end">
         <AddAppointment
           patientId={patient.id}

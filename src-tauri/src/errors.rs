@@ -11,6 +11,9 @@ pub enum AppError {
 
     #[error("Already exists: {0}")]
     AlreadyExists(String),
+
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
 }
 
 impl Serialize for AppError {

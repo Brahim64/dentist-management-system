@@ -21,6 +21,7 @@ import { MoreHorizontalIcon } from "lucide-react";
 import { patientApi } from "@/api/patient-api";
 import { toast } from "../ui/toast";
 import { AddAppointment } from "../appointment-components/add-appointment";
+import { AddTreatmentPlan } from "../treatment-plan-components/add-treatment-plan";
 import { useState } from "react";
 
 interface PatientTableProps {
@@ -57,6 +58,10 @@ export function PatientTable({
   onPatientDeleted,
 }: PatientTableProps) {
   const navigate = useNavigate();
+  const [appointmentPatient, setAppointmentPatient] =
+    useState<PatientSummary | null>(null);
+  const [treatmentPlanPatient, setTreatmentPlanPatient] =
+    useState<PatientSummary | null>(null);
 
   if (patients.length === 0) {
     return (
@@ -83,66 +88,102 @@ export function PatientTable({
   };
 
   return (
-    <Table className="w-[80%]">
-      <TableHeader>
-        <TableRow>
-          <TableHead>Patient</TableHead>
-          <TableHead>Age</TableHead>
-          <TableHead>Phone</TableHead>
-          <TableHead>Last visit</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {patients.map((patient) => (
-          <TableRow
-            key={patient.id}
-            className="cursor-pointer"
-            onClick={() => navigate(`/patients/${patient.id}`)}
-          >
-            <TableCell>
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
-                  {getInitials(patient.firstName, patient.lastName)}
-                </div>
-                <span className="font-medium">
-                  {patient.firstName} {patient.lastName}
-                </span>
-              </div>
-            </TableCell>
-            <TableCell>{calculateAge(patient.dateOfBirth)}</TableCell>
-            <TableCell>{patient.phone}</TableCell>
-            <TableCell>{formatDate(patient.lastVisit)}</TableCell>
-            <TableCell
-              className="text-right"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button variant="ghost" size="icon" className="size-8">
-                      <MoreHorizontalIcon />
-                      <span className="sr-only">Open menu</span>
-                    </Button>
-                  }
-                />
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Edit</DropdownMenuItem>
-                  <DropdownMenuItem>Add appointment</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={() => delete_patient(patient?.id)}
-                  >
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </TableCell>
+    <>
+      <Table className="w-[80%]">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Patient</TableHead>
+            <TableHead>Age</TableHead>
+            <TableHead>Phone</TableHead>
+            <TableHead>Last visit</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {patients.map((patient) => (
+            <TableRow
+              key={patient.id}
+              className="cursor-pointer"
+              onClick={() => navigate(`/patients/${patient.id}`)}
+            >
+              <TableCell>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
+                    {getInitials(patient.firstName, patient.lastName)}
+                  </div>
+                  <span className="font-medium">
+                    {patient.firstName} {patient.lastName}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell>{calculateAge(patient.dateOfBirth)}</TableCell>
+              <TableCell>{patient.phone}</TableCell>
+              <TableCell>{formatDate(patient.lastVisit)}</TableCell>
+              <TableCell
+                className="text-right"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button variant="ghost" size="icon" className="size-8">
+                        <MoreHorizontalIcon />
+                        <span className="sr-only">Open menu</span>
+                      </Button>
+                    }
+                  />
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>Edit</DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setAppointmentPatient(patient)}
+                    >
+                      Add appointment
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setTreatmentPlanPatient(patient)}
+                    >
+                      Add treatment plan
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => delete_patient(patient.id)}
+                    >
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {appointmentPatient && (
+        <AddAppointment
+          key={appointmentPatient.id}
+          patientId={appointmentPatient.id}
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setAppointmentPatient(null);
+            }
+          }}
+        />
+      )}
+      {treatmentPlanPatient && (
+        <AddTreatmentPlan
+          key={treatmentPlanPatient.id}
+          patientId={treatmentPlanPatient.id}
+          patientName={`${treatmentPlanPatient.firstName} ${treatmentPlanPatient.lastName}`}
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setTreatmentPlanPatient(null);
+            }
+          }}
+        />
+      )}
+    </>
   );
 }

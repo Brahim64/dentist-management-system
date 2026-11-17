@@ -9,6 +9,7 @@ pub struct Appointment {
     pub id: Uuid,
 
     pub patient_id: Uuid,
+    pub treatment_plan_id: Option<Uuid>,
 
     pub date: String,
 
@@ -29,6 +30,7 @@ pub struct Appointment {
 #[serde(rename_all = "camelCase")]
 pub struct CreateAppointmentInput {
     pub patient_id: Uuid,
+    pub treatment_plan_id: Option<Uuid>,
     pub date: String,
     pub acte: String,
     pub amount: f64,
@@ -41,6 +43,7 @@ pub struct CreateAppointmentInput {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateAppointmentInput {
     pub patient_id: Uuid,
+    pub treatment_plan_id: Option<Uuid>,
     pub date: String,
     pub acte: String,
     pub amount: f64,

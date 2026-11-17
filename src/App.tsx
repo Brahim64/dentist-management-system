@@ -6,6 +6,8 @@ import Layout from "./components/layouts/layout";
 import Dashboard from "./pages/dashboard";
 import PatientProfile from "./pages/patient-profile";
 import PatientList from "./pages/patient-list";
+import Appointments from "./pages/appointments";
+import TreatmentPlansPage from "./pages/treatment-plans";
 
 function App() {
   const [greetMsg, setGreetMsg] = useState("");
@@ -23,7 +25,9 @@ function App() {
            <Route path="/" element={<Dashboard />} />
           <Route path="/patients" element={<PatientList />} />
           <Route path="/patients/:id" element={<PatientProfile />} />
-          {/*<Route path="/appointments" element={<Appointments />} />
+           <Route path="/appointments" element={<Appointments />} />
+          <Route path="/treatment-plans" element={<TreatmentPlansPage />} />
+           {/*
           <Route path="/billing" element={<Billing />} />
           <Route path="/settings" element={<Settings />} /> */}
         </Route>

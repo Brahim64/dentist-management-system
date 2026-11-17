@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Plus, CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -29,10 +29,12 @@ import {
 import { CreateAppointmentInput } from "@/models/appointment";
 import { appointmentApi } from "@/api/appointment-api";
 import { toast } from "../ui/toast";
-import { DropdownMenuItem } from "../ui/dropdown-menu";
 
 interface AddAppointmentProps {
   patientId: string;
+  treatmentPlanId?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onAppointmentAdded?: (
     appointment: Awaited<ReturnType<typeof appointmentApi.create>>,
   ) => void;
@@ -40,10 +42,20 @@ interface AddAppointmentProps {
 
 export function AddAppointment({
   patientId,
+  treatmentPlanId,
+  open,
+  onOpenChange,
   onAppointmentAdded,
 }: AddAppointmentProps) {
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [internalDialogOpen, setInternalDialogOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
+  const [appointmentTime, setAppointmentTime] = useState("");
+  const dialogOpen = open ?? internalDialogOpen;
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    setInternalDialogOpen(nextOpen);
+    onOpenChange?.(nextOpen);
+  };
 
   const [newAppointment, setNewAppointment] = useState<
     Partial<CreateAppointmentInput>
@@ -80,7 +92,13 @@ export function AddAppointment({
 
     const appointment: CreateAppointmentInput = {
       patientId,
-      date: newAppointment.date,
+      treatmentPlanId,
+      date: (() => {
+        const date = parseISO(newAppointment.date!);
+        const [hours, minutes] = appointmentTime.split(":").map(Number);
+        date.setHours(hours, minutes, 0, 0);
+        return date.toISOString();
+      })(),
       acte: newAppointment.acte,
       amount: Number(newAppointment.amount),
       inAdvance: Number(newAppointment.inAdvance ?? 0),
@@ -89,27 +107,25 @@ export function AddAppointment({
     };
 
     try {
-      const createdAppointment = await appointmentApi
-        .create(appointment)
-        .then(() => {
-          toast.add({
-            title: "Appointment Added Successfully",
-            type: "success",
-            description: "The appointment has been added.",
-          });
+      const createdAppointment = await appointmentApi.create(appointment);
+      onAppointmentAdded?.(createdAppointment);
+      toast.add({
+        title: "Appointment Added Successfully",
+        type: "success",
+        description: "The appointment has been added.",
+      });
 
-          // Reset form
-          setNewAppointment({
-            patientId,
-            date: "",
-            acte: "",
-            amount: 0,
-            inAdvance: 0,
-            notes: "",
-            status: "scheduled",
-          });
-          setDialogOpen(false);
-        });
+      setNewAppointment({
+        patientId,
+        date: "",
+        acte: "",
+        amount: 0,
+        inAdvance: 0,
+        notes: "",
+        status: "scheduled",
+      });
+      setAppointmentTime("");
+      handleDialogOpenChange(false);
     } catch (error) {
       console.error("Failed to create appointment:", error);
 
@@ -122,15 +138,17 @@ export function AddAppointment({
   };
 
   return (
-    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogTrigger
-        render={
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Appointment
-          </Button>
-        }
-      />
+    <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
+      {open === undefined && (
+        <DialogTrigger
+          render={
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Appointment
+            </Button>
+          }
+        />
+      )}
 
       <DialogContent className="sm:max-w-xl">
         <form onSubmit={handleSubmit}>
@@ -157,7 +175,7 @@ export function AddAppointment({
                       <CalendarIcon className="mr-2 h-4 w-4" />
 
                       {newAppointment.date ? (
-                        format(new Date(newAppointment.date), "PPP")
+                        format(parseISO(newAppointment.date), "PPP")
                       ) : (
                         <span>Pick a date</span>
                       )}
@@ -172,9 +190,14 @@ export function AddAppointment({
                   <Calendar
                     mode="single"
                     captionLayout="dropdown"
+                    selected={
+                      newAppointment.date
+                        ? parseISO(newAppointment.date)
+                        : undefined
+                    }
                     onSelect={(date) => {
                       if (date) {
-                        handleChange("date", date.toISOString());
+                        handleChange("date", format(date, "yyyy-MM-dd"));
                       }
 
                       setDateOpen(false);
@@ -182,6 +205,17 @@ export function AddAppointment({
                   />
                 </PopoverContent>
               </Popover>
+            </Field>
+
+            <Field>
+              <Label htmlFor="appointment-time">Time *</Label>
+              <Input
+                id="appointment-time"
+                type="time"
+                value={appointmentTime}
+                onChange={(e) => setAppointmentTime(e.target.value)}
+                required
+              />
             </Field>
 
             {/* STATUS */}
