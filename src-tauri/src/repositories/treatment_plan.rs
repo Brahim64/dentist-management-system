@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use sqlx::PgPool;
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 use uuid::Uuid;
 
 use crate::{
@@ -10,15 +10,20 @@ use crate::{
     },
 };
 
-pub async fn create(pool: &PgPool, input: CreateTreatmentPlanInput) -> AppResult<TreatmentPlan> {
+pub async fn create(
+    pool: &SqlitePool,
+    input: CreateTreatmentPlanInput,
+) -> AppResult<TreatmentPlan> {
     let mut transaction = pool.begin().await?;
+    let plan_id = Uuid::new_v4();
     let record = sqlx::query_as::<_, TreatmentPlanRecord>(
         r#"
-        INSERT INTO treatment_plans (patient_id, title, notes)
-        VALUES ($1, $2, $3)
+        INSERT INTO treatment_plans (id, patient_id, title, notes)
+        VALUES (?, ?, ?, ?)
         RETURNING id, patient_id, title, notes, created_at, updated_at
         "#,
     )
+    .bind(plan_id)
     .bind(input.patient_id)
     .bind(input.title.trim())
     .bind(input.notes)
@@ -30,12 +35,13 @@ pub async fn create(pool: &PgPool, input: CreateTreatmentPlanInput) -> AppResult
         let created_item = sqlx::query_as::<_, TreatmentPlanItem>(
             r#"
             INSERT INTO treatment_plan_items
-                (treatment_plan_id, description, price, sort_order)
-            VALUES ($1, $2, $3, $4)
+                (id, treatment_plan_id, description, price, sort_order)
+            VALUES (?, ?, ?, ?, ?)
             RETURNING id, treatment_plan_id, description, price, status,
                       sort_order, created_at, updated_at
             "#,
         )
+        .bind(Uuid::new_v4())
         .bind(record.id)
         .bind(item.description.trim())
         .bind(item.price)
@@ -57,7 +63,7 @@ pub async fn create(pool: &PgPool, input: CreateTreatmentPlanInput) -> AppResult
     })
 }
 
-pub async fn get_all(pool: &PgPool) -> AppResult<Vec<TreatmentPlan>> {
+pub async fn get_all(pool: &SqlitePool) -> AppResult<Vec<TreatmentPlan>> {
     let records = sqlx::query_as::<_, TreatmentPlanRecord>(
         r#"
         SELECT id, patient_id, title, notes, created_at, updated_at
@@ -70,12 +76,15 @@ pub async fn get_all(pool: &PgPool) -> AppResult<Vec<TreatmentPlan>> {
     plans_with_items(pool, records).await
 }
 
-pub async fn get_by_patient_id(pool: &PgPool, patient_id: Uuid) -> AppResult<Vec<TreatmentPlan>> {
+pub async fn get_by_patient_id(
+    pool: &SqlitePool,
+    patient_id: Uuid,
+) -> AppResult<Vec<TreatmentPlan>> {
     let records = sqlx::query_as::<_, TreatmentPlanRecord>(
         r#"
         SELECT id, patient_id, title, notes, created_at, updated_at
         FROM treatment_plans
-        WHERE patient_id = $1
+        WHERE patient_id = ?
         ORDER BY updated_at DESC, created_at DESC
         "#,
     )
@@ -86,7 +95,7 @@ pub async fn get_by_patient_id(pool: &PgPool, patient_id: Uuid) -> AppResult<Vec
 }
 
 pub async fn update_item_status(
-    pool: &PgPool,
+    pool: &SqlitePool,
     item_id: Uuid,
     status: &str,
 ) -> AppResult<TreatmentPlanItem> {
@@ -94,8 +103,8 @@ pub async fn update_item_status(
     let item = sqlx::query_as::<_, TreatmentPlanItem>(
         r#"
         UPDATE treatment_plan_items
-        SET status = $1, updated_at = NOW()
-        WHERE id = $2
+        SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        WHERE id = ?
         RETURNING id, treatment_plan_id, description, price, status,
                   sort_order, created_at, updated_at
         "#,
@@ -106,7 +115,9 @@ pub async fn update_item_status(
     .await?
     .ok_or_else(|| AppError::NotFound(item_id.to_string()))?;
 
-    sqlx::query("UPDATE treatment_plans SET updated_at = NOW() WHERE id = $1")
+    sqlx::query(
+        "UPDATE treatment_plans SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?",
+    )
         .bind(item.treatment_plan_id)
         .execute(&mut *transaction)
         .await?;
@@ -116,7 +127,7 @@ pub async fn update_item_status(
 }
 
 async fn plans_with_items(
-    pool: &PgPool,
+    pool: &SqlitePool,
     records: Vec<TreatmentPlanRecord>,
 ) -> AppResult<Vec<TreatmentPlan>> {
     if records.is_empty() {
@@ -124,18 +135,25 @@ async fn plans_with_items(
     }
 
     let ids = records.iter().map(|plan| plan.id).collect::<Vec<_>>();
-    let items = sqlx::query_as::<_, TreatmentPlanItem>(
+    let mut query_builder = QueryBuilder::<Sqlite>::new(
         r#"
         SELECT id, treatment_plan_id, description, price, status,
                sort_order, created_at, updated_at
         FROM treatment_plan_items
-        WHERE treatment_plan_id = ANY($1)
-        ORDER BY sort_order, created_at
+        WHERE treatment_plan_id IN (
         "#,
-    )
-    .bind(&ids)
-    .fetch_all(pool)
-    .await?;
+    );
+    {
+        let mut separated = query_builder.separated(", ");
+        for id in &ids {
+            separated.push_bind(id);
+        }
+    }
+    query_builder.push(") ORDER BY sort_order, created_at");
+    let items = query_builder
+        .build_query_as::<TreatmentPlanItem>()
+        .fetch_all(pool)
+        .await?;
 
     let mut items_by_plan = HashMap::<Uuid, Vec<TreatmentPlanItem>>::new();
     for item in items {

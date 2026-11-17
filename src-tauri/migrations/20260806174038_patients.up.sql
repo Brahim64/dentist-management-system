@@ -1,8 +1,6 @@
 -- Add up migration script here
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
 CREATE TABLE patients (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY NOT NULL,
 
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
@@ -27,8 +25,8 @@ CREATE TABLE patients (
 
     notes TEXT,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
 CREATE INDEX idx_patients_last_name

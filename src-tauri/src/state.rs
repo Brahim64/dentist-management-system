@@ -1,7 +1,6 @@
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 #[derive(Clone)]
-pub struct AppState{
-    pub db:PgPool
+pub struct AppState {
+    pub db: SqlitePool,
 }
-

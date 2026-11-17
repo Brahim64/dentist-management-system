@@ -2,15 +2,16 @@ use crate::{
     errors::{AppError, AppResult},
     models::appointment::{Appointment, CreateAppointmentInput, UpdateAppointmentInput},
 };
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use uuid::Uuid;
 
-pub async fn create(pool: &PgPool, input: CreateAppointmentInput) -> AppResult<Appointment> {
+pub async fn create(pool: &SqlitePool, input: CreateAppointmentInput) -> AppResult<Appointment> {
     validate_treatment_plan(pool, input.patient_id, input.treatment_plan_id).await?;
 
     let appointment = sqlx::query_as::<_, Appointment>(
         r#"
         INSERT INTO appointments (
+            id,
             patient_id,
             treatment_plan_id,
             date,
@@ -20,7 +21,7 @@ pub async fn create(pool: &PgPool, input: CreateAppointmentInput) -> AppResult<A
             notes,
             status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING
             id,
             patient_id,
@@ -35,6 +36,7 @@ pub async fn create(pool: &PgPool, input: CreateAppointmentInput) -> AppResult<A
             updated_at
         "#,
     )
+    .bind(Uuid::new_v4())
     .bind(input.patient_id)
     .bind(input.treatment_plan_id)
     .bind(input.date)
@@ -49,7 +51,7 @@ pub async fn create(pool: &PgPool, input: CreateAppointmentInput) -> AppResult<A
     Ok(appointment)
 }
 
-pub async fn get_by_id(pool: &PgPool, id: Uuid) -> AppResult<Option<Appointment>> {
+pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> AppResult<Option<Appointment>> {
     let appointment = sqlx::query_as::<_, Appointment>(
         r#"
         SELECT
@@ -65,7 +67,7 @@ pub async fn get_by_id(pool: &PgPool, id: Uuid) -> AppResult<Option<Appointment>
             created_at,
             updated_at
         FROM appointments
-        WHERE id = $1
+        WHERE id = ?
         "#,
     )
     .bind(id)
@@ -75,7 +77,7 @@ pub async fn get_by_id(pool: &PgPool, id: Uuid) -> AppResult<Option<Appointment>
     Ok(appointment)
 }
 
-pub async fn get_by_patient_id(pool: &PgPool, patient_id: Uuid) -> AppResult<Vec<Appointment>> {
+pub async fn get_by_patient_id(pool: &SqlitePool, patient_id: Uuid) -> AppResult<Vec<Appointment>> {
     let appointments = sqlx::query_as::<_, Appointment>(
         r#"
         SELECT
@@ -91,7 +93,7 @@ pub async fn get_by_patient_id(pool: &PgPool, patient_id: Uuid) -> AppResult<Vec
             created_at,
             updated_at
         FROM appointments
-        WHERE patient_id = $1
+        WHERE patient_id = ?
         ORDER BY date DESC, created_at DESC
         "#,
     )
@@ -102,7 +104,7 @@ pub async fn get_by_patient_id(pool: &PgPool, patient_id: Uuid) -> AppResult<Vec
     Ok(appointments)
 }
 
-pub async fn get_all(pool: &PgPool) -> AppResult<Vec<Appointment>> {
+pub async fn get_all(pool: &SqlitePool) -> AppResult<Vec<Appointment>> {
     let appointments = sqlx::query_as::<_, Appointment>(
         r#"
         SELECT
@@ -128,7 +130,7 @@ pub async fn get_all(pool: &PgPool) -> AppResult<Vec<Appointment>> {
 }
 
 pub async fn update(
-    pool: &PgPool,
+    pool: &SqlitePool,
     id: Uuid,
     input: UpdateAppointmentInput,
 ) -> AppResult<Appointment> {
@@ -138,16 +140,16 @@ pub async fn update(
         r#"
         UPDATE appointments
         SET
-            patient_id = $1,
-            treatment_plan_id = $2,
-            date = $3,
-            acte = $4,
-            amount = $5,
-            in_advance = $6,
-            notes = $7,
-            status = $8,
-            updated_at = NOW()
-        WHERE id = $9
+            patient_id = ?,
+            treatment_plan_id = ?,
+            date = ?,
+            acte = ?,
+            amount = ?,
+            in_advance = ?,
+            notes = ?,
+            status = ?,
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        WHERE id = ?
         RETURNING
             id,
             patient_id,
@@ -178,8 +180,8 @@ pub async fn update(
     Ok(appointment)
 }
 
-pub async fn delete(pool: &PgPool, id: Uuid) -> AppResult<()> {
-    let result = sqlx::query("DELETE FROM appointments WHERE id = $1")
+pub async fn delete(pool: &SqlitePool, id: Uuid) -> AppResult<()> {
+    let result = sqlx::query("DELETE FROM appointments WHERE id = ?")
         .bind(id)
         .execute(pool)
         .await?;
@@ -192,17 +194,17 @@ pub async fn delete(pool: &PgPool, id: Uuid) -> AppResult<()> {
 }
 
 async fn validate_treatment_plan(
-    pool: &PgPool,
+    pool: &SqlitePool,
     patient_id: Uuid,
     treatment_plan_id: Option<Uuid>,
 ) -> AppResult<()> {
     if let Some(treatment_plan_id) = treatment_plan_id {
-        let belongs_to_patient = sqlx::query_scalar::<_, bool>(
+        let belongs_to_patient = sqlx::query_scalar::<_, i64>(
             r#"
             SELECT EXISTS (
                 SELECT 1
                 FROM treatment_plans
-                WHERE id = $1 AND patient_id = $2
+                WHERE id = ? AND patient_id = ?
             )
             "#,
         )
@@ -211,7 +213,7 @@ async fn validate_treatment_plan(
         .fetch_one(pool)
         .await?;
 
-        if !belongs_to_patient {
+        if belongs_to_patient == 0 {
             return Err(AppError::InvalidInput(
                 "The treatment plan does not belong to this patient".to_owned(),
             ));

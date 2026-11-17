@@ -1,4 +1,4 @@
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::{
@@ -13,7 +13,7 @@ pub struct TreatmentPlanService;
 
 impl TreatmentPlanService {
     pub async fn create(
-        pool: &PgPool,
+        pool: &SqlitePool,
         input: CreateTreatmentPlanInput,
     ) -> AppResult<TreatmentPlan> {
         if input.title.trim().is_empty() {
@@ -37,19 +37,19 @@ impl TreatmentPlanService {
         treatment_plan::create(pool, input).await
     }
 
-    pub async fn get_all(pool: &PgPool) -> AppResult<Vec<TreatmentPlan>> {
+    pub async fn get_all(pool: &SqlitePool) -> AppResult<Vec<TreatmentPlan>> {
         treatment_plan::get_all(pool).await
     }
 
     pub async fn get_by_patient_id(
-        pool: &PgPool,
+        pool: &SqlitePool,
         patient_id: Uuid,
     ) -> AppResult<Vec<TreatmentPlan>> {
         treatment_plan::get_by_patient_id(pool, patient_id).await
     }
 
     pub async fn update_item_status(
-        pool: &PgPool,
+        pool: &SqlitePool,
         item_id: Uuid,
         status: TreatmentPlanItemStatus,
     ) -> AppResult<TreatmentPlanItem> {

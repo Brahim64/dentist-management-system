@@ -1,8 +1,8 @@
 -- Add up migration script here
 CREATE TABLE appointments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY NOT NULL,
 
-    patient_id UUID NOT NULL,
+    patient_id TEXT NOT NULL,
 
     date TEXT NOT NULL,
 
@@ -16,9 +16,9 @@ CREATE TABLE appointments (
 
     status TEXT NOT NULL DEFAULT 'scheduled',
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
     CONSTRAINT fk_appointments_patient
         FOREIGN KEY (patient_id)
